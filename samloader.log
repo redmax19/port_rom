@@ -1,0 +1,20 @@
+[2026-06-28 20:32:36] Command: /usr/local/lib/python3.12/dist-packages/samloader/__main__.py -m SM-S711B -r EUX -i 350389910895757 checkupdate
+[2026-06-28 20:34:19] Command: /usr/local/lib/python3.12/dist-packages/samloader/__main__.py -m SM-S711B -r EUX -i 350389910895757 checkupdate
+[2026-06-28 20:34:20] Command: /usr/local/lib/python3.12/dist-packages/samloader/__main__.py -m SM-S711B -r EUX -i 350389910895757 download -O /home/miguel/QuantumROM/FW/SM-S711B
+[2026-06-28 20:34:22] Device: SM-S711B
+[2026-06-28 20:34:22] CSC: EUX
+[2026-06-28 20:34:22] FW: S711BXXSFGZE2/S711BOXMFGZE2/S711BXXSFGZE2/S711BXXSFGZE2
+[2026-06-28 20:34:22] Path: /home/miguel/QuantumROM/FW/SM-S711B/SM-S711B_5_20260515123201_3m9mxygnfn_fac.zip.enc4
+[2026-06-28 20:34:22] Downloading: SM-S711B_5_20260515123201_3m9mxygnfn_fac.zip.enc4
+[2026-06-28 20:41:20] Download progress: 1369.88 MB / 13698.40 MB
+[2026-06-28 20:48:31] Download progress: 2739.69 MB / 13698.40 MB
+[2026-06-28 20:55:28] Download progress: 4109.56 MB / 13698.40 MB
+[2026-06-28 21:01:35] Download progress: 5479.38 MB / 13698.40 MB
+[2026-06-28 21:07:57] Download progress: 6849.25 MB / 13698.40 MB
+[2026-06-28 21:15:08] Download progress: 8219.06 MB / 13698.40 MB
+[2026-06-28 21:21:02] Download progress: 9588.94 MB / 13698.40 MB
+[2026-06-28 21:26:58] Download progress: 10958.75 MB / 13698.40 MB
+[2026-06-28 21:32:58] Download progress: 12328.56 MB / 13698.40 MB
+[2026-06-28 21:38:57] Download progress: 13698.40 MB / 13698.40 MB
+[2026-06-28 21:38:57] Download completed.
+[2026-06-28 21:45:02] Decryption completed.

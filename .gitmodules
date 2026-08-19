@@ -1,0 +1,3 @@
+[submodule "bin/external_img2sdat"]
+	path = bin/external_img2sdat
+	url = https://github.com/UN1CA/external_img2sdat.git

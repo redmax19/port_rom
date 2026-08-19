@@ -1,0 +1,177 @@
+name: Build QuantumROM Aurora.
+
+on:
+  workflow_dispatch:
+    inputs:
+      STOCK_DEVICE:
+        description: "STOCK_DEVICE_MODEL or None"
+        required: true
+        default: "SM-G980F"
+      USE_UI_8_TETHERING_APEX:
+        description: "Set True if your kernel BPF version is 5.4 (lower than 5.10)."
+        required: true
+        default: "True"
+      TARGET_DEVICE:
+        description: "TARGET_DEVICE_MODEL."
+        required: true
+        default: "SM-S711B"
+      TARGET_DEVICE_CSC:
+        description: "TARGET_DEVICE_CSC."
+        required: true
+        default: "EUX"
+      TARGET_DEVICE_IMEI:
+        description: "TARGET_DEVICE_IMEI."
+        required: true
+        default: "350389910895757"
+      OUTPUT_FILESYSTEM:
+        description: "OUTPUT_FILESYSTEM. e.g erofs / ext4 / f2fs"
+        required: true
+        default: "erofs"
+
+jobs:
+  build:
+    name: Start QuantumROM Aurora Build.
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Checkout repository.
+        uses: actions/checkout@v4
+
+      - name: Validate STOCK_DEVICE
+        run: |
+          STOCK_DEVICE="${{ github.event.inputs.STOCK_DEVICE }}"
+          DEVICE_PATH="QuantumROM/Devices/$STOCK_DEVICE"
+          if [ "$STOCK_DEVICE" != "None" ] && [ ! -d "$DEVICE_PATH" ]; then
+            echo "❌ $STOCK_DEVICE is not supported with this tool."
+            exit 1
+          fi
+
+      - name: Remove unnecessary files.
+        uses: rokibhasansagar/slimhub_actions@v25.42.5
+
+      - name: Install Dependencies.
+        run: |
+          sudo apt update
+          sudo apt install -y p7zip-full lz4 liblz4-1 liblz4-dev libzstd1 libzstd-dev build-essential android-sdk-libsparse-utils f2fs-tools fuse2fs fuse e2fsprogs python3 python3-pip zipalign unzip openjdk-21-jdk jq perl xxd kmod erofs-utils linux-modules-extra-$(uname -r)
+          sudo modprobe f2fs
+          sudo pip3 install git+https://github.com/SN-Abdullah-Al-Noman/samloader.git --break-system-packages
+          mkdir -p FW WORK OUT
+
+      - name: Download firmware ▶️ ${{ github.event.inputs.TARGET_DEVICE }} - ${{ github.event.inputs.TARGET_DEVICE_CSC }}
+        run: |
+          source scripts/QuantumRom.sh
+          DOWNLOAD_FIRMWARE "${{ github.event.inputs.TARGET_DEVICE }}" "${{ github.event.inputs.TARGET_DEVICE_CSC }}" "${{ github.event.inputs.TARGET_DEVICE_IMEI }}" "FW" "${{ github.event.inputs.TARGET_FW_VERSION }}"
+
+      - name: Extract firmware
+        run: |
+          source scripts/QuantumRom.sh
+          EXTRACT_FIRMWARE "FW/${{ github.event.inputs.TARGET_DEVICE }}"
+
+      - name: Download extra partition images (odm/vendor) from GitHub Release
+        env:
+          STOCK_DEVICE: ${{ github.event.inputs.STOCK_DEVICE }}
+          GH_TOKEN: ${{ secrets.GIT_TOKEN }}
+          RELEASE_REPO: "miguelbarretoo/QuantumROM"   # repo where the release assets live
+          RELEASE_TAG: "extra-files"                        # tag of the release holding odm/vendor imgs
+        run: |
+          set -e
+
+          # ==== Devices that need extra odm/vendor files ====
+          SUPPORTED_DEVICES=("SM-G780F" "SM-G980F" "SM-G988B")
+          # Add new devices to the array above. As long as you upload
+          # "<DEVICE>-odm.img" and/or "<DEVICE>-vendor.img" as assets
+          # in the release, no further changes are needed here.
+          # =====================================================
+
+          IS_SUPPORTED=false
+          for d in "${SUPPORTED_DEVICES[@]}"; do
+            if [ "$d" == "$STOCK_DEVICE" ]; then
+              IS_SUPPORTED=true
+              break
+            fi
+          done
+
+          if [ "$IS_SUPPORTED" = false ]; then
+            echo "ℹ️ $STOCK_DEVICE does not need extra odm/vendor files. Skipping."
+            exit 0
+          fi
+
+          EXTRAS_DIR="QuantumROM/Devices/${STOCK_DEVICE}/extra"
+          TMP_ODM="extra-files/odm"
+          TMP_VENDOR="extra-files/vendor"
+
+          mkdir -p "$TMP_ODM" "$TMP_VENDOR" "$EXTRAS_DIR"
+
+          ODM_ASSET="${STOCK_DEVICE}-odm.img"
+          VENDOR_ASSET="${STOCK_DEVICE}-vendor.img"
+
+          BASE_URL="https://github.com/${RELEASE_REPO}/releases/download/${RELEASE_TAG}"
+
+          echo "⬇️  Downloading odm.img for $STOCK_DEVICE..."
+          if curl -f -L -H "Authorization: Bearer ${GH_TOKEN}" \
+              "${BASE_URL}/${ODM_ASSET}" -o "$TMP_ODM/odm.img"; then
+            mv "$TMP_ODM/odm.img" "$EXTRAS_DIR/odm.img"
+            echo "✅ odm.img saved to $EXTRAS_DIR"
+          else
+            echo "⚠️  No odm.img asset found for $STOCK_DEVICE, skipping."
+          fi
+
+          echo "⬇️  Downloading vendor.img for $STOCK_DEVICE..."
+          if curl -f -L -H "Authorization: Bearer ${GH_TOKEN}" \
+              "${BASE_URL}/${VENDOR_ASSET}" -o "$TMP_VENDOR/vendor.img"; then
+            mv "$TMP_VENDOR/vendor.img" "$EXTRAS_DIR/vendor.img"
+            echo "✅ vendor.img saved to $EXTRAS_DIR"
+          else
+            echo "⚠️  No vendor.img asset found for $STOCK_DEVICE, skipping."
+          fi
+
+      - name: Adjust build partitions based on available extras
+        env:
+          STOCK_DEVICE: ${{ github.event.inputs.STOCK_DEVICE }}
+        run: |
+          set -e
+
+          EXTRAS_DIR="QuantumROM/Devices/${STOCK_DEVICE}/extra"
+          BASE_PARTITIONS="product,system_ext,system"
+          EXTRA_PARTITIONS=""
+
+          if [ -f "$EXTRAS_DIR/vendor.img" ]; then
+            EXTRA_PARTITIONS="${EXTRA_PARTITIONS},vendor"
+          else
+            echo "⚠️  vendor.img not found in $EXTRAS_DIR — vendor partition will be skipped."
+          fi
+
+          if [ -f "$EXTRAS_DIR/odm.img" ]; then
+            EXTRA_PARTITIONS="${EXTRA_PARTITIONS},odm"
+          else
+            echo "⚠️  odm.img not found in $EXTRAS_DIR — odm partition will be skipped."
+          fi
+
+          FINAL_PARTITIONS="${BASE_PARTITIONS}${EXTRA_PARTITIONS}"
+          echo "✅ BUILD_PARTITIONS will be: $FINAL_PARTITIONS"
+
+          sed -i "s|^export BUILD_PARTITIONS=.*|export BUILD_PARTITIONS=\"${FINAL_PARTITIONS}\"|" sixteen.sh
+
+      - name: Start Rom Build For ${{ github.event.inputs.STOCK_DEVICE }}
+        run: |
+          sudo bash sixteen.sh \
+            "${{ github.event.inputs.STOCK_DEVICE }}" \
+            "${{ github.event.inputs.USE_UI_8_TETHERING_APEX }}" \
+            "${{ github.event.inputs.TARGET_DEVICE }}" \
+            "${{ github.event.inputs.TARGET_DEVICE_CSC }}" \
+            "${{ github.event.inputs.TARGET_DEVICE_IMEI }}" \
+            "${{ github.event.inputs.OUTPUT_FILESYSTEM }}"
+
+      - name: Compress all .img & make zip file before upload.
+        run: |
+          export STOCK_DEVICE="${{ github.event.inputs.STOCK_DEVICE }}"
+          export TARGET_DEVICE="${{ github.event.inputs.TARGET_DEVICE }}"
+          bash scripts/images_zip.sh
+
+
+      - name: Upload ROM Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: QuantumROM-${{ github.event.inputs.STOCK_DEVICE }}
+          path: |
+            OUT/QuantumROM*.zip*
