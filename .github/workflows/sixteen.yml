@@ -171,9 +171,17 @@ jobs:
           bash scripts/images_zip.sh
 
 
-      - name: Upload ROM Artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: QuantumROM-${{ github.event.inputs.STOCK_DEVICE }}
-          path: |
-            OUT/QuantumROM*.zip*
+      - name: Upload to GoFile
+        run: |
+          ZIP_FILE=$(find OUT -maxdepth 1 -type f -name "QuantumROM*.zip" | head -n 1)
+
+          RESPONSE=$(curl -s -F "file=@$ZIP_FILE" -F "token=${{ secrets.GOFILE_TOKEN }}" -F "folderId=${{ secrets.GOFILE_FOLDER_ID }}" "https://upload-eu-par.gofile.io/uploadFile")
+
+          echo "Uploaded successfully! Download link:"
+          echo "$RESPONSE" | jq -r '.data.downloadPage'
+
+          echo "MD5:"
+          md5sum "$ZIP_FILE"
+
+          echo "SHA256:"
+          sha256sum "$ZIP_FILE"
