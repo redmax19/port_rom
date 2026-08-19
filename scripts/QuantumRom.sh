@@ -226,55 +226,6 @@ DETECT_FILESYSTEM() {
     esac
 }
 
-
-DOWNLOAD_FIRMWARE() {
-    echo " "
-
-    if [ "$#" -lt 4 ]; then
-        echo -e "Usage: ${FUNCNAME[0]} <MODEL> <CSC> <IMEI> <DOWNLOAD_DIRECTORY> [VERSION]"
-        return 1
-    fi
-
-    local MODEL="$1"
-    local CSC="$2"
-    local IMEI="$3"
-    local DOWN_DIR="${4}/$MODEL"
-
-    rm -rf "$DOWN_DIR"
-    mkdir -p "$DOWN_DIR"
-
-    echo -e "======================================"
-    echo -e "  Samsung FW Downloader   "
-    echo -e "======================================"
-    echo -e "MODEL: $MODEL | CSC: $CSC"
-
-    VERSION=$(python3 -m samloader -m "$MODEL" -r "$CSC" -i "$IMEI" checkupdate 2>&1)
-
-    if [ $? -ne 0 ] || [ -z "$VERSION" ]; then
-        echo -e "⛔️ MODEL/CSC/IMEI not valid or no update found."
-        echo -e "Error: $VERSION"
-        return 1
-    fi
-
-    if [ -n "$GITHUB_ENV" ]; then
-        echo "VERSION=$VERSION" >> "$GITHUB_ENV"
-    fi
-
-    # --- Step 2: Download Firmware ---
-    python3 -m samloader -m "$MODEL" -r "$CSC" -i "$IMEI" download -O "$DOWN_DIR"
-    if [ $? -ne 0 ]; then
-        echo -e "⛔️ Download failed. Check IMEI/MODEL/CSC."
-        exit 1
-    fi
-
-	find "$DOWN_DIR" -type f -name "*.zip.enc*" -delete
-
-    # --- Show Firmware Info ---
-    local file_size=$(du -m "${DOWN_DIR}"/${MODEL}_*_fac.zip 2>/dev/null | cut -f1)
-    echo -e "Firmware Size: ${file_size} MB"
-}
-
-
 EXTRACT_FIRMWARE() {
     echo " "
 
