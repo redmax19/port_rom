@@ -11,6 +11,7 @@ QT_DIR="$(pwd)"
 export lpmake="$QT_DIR/bin/lp/lpmake"
 export lpunpack="$QT_DIR/bin/lp/lpunpack"
 export make_ext4fs="$QT_DIR/bin/ext4/make_ext4fs"
+export samloader="$QT_DIR/bin/samloader/samloader"
 export make_f2fs="$QT_DIR/bin/f2fs-tools/mkfs.f2fs"
 export sload_f2fs="$QT_DIR/bin/f2fs-tools/sload.f2fs"
 export omc_decoder="$QT_DIR/bin/java/omc-decoder.jar"
@@ -20,12 +21,63 @@ export imgextractor_py="$QT_DIR/bin/py_scripts/imgextractor.py"
 
 chmod +x "$lpmake"
 chmod +x "$lpunpack"
+chmod +x "$samloader"
 chmod +x "$make_f2fs"
 chmod +x "$sload_f2fs"
 chmod +x "$mkfs_erofs"
 chmod +x "$make_ext4fs"
 chmod +x "$extract_erofs"
 
+
+DOWNLOAD_FIRMWARE() {
+    echo " "
+
+    if [ "$#" -lt 3 ]; then
+        echo -e "Usage: ${FUNCNAME[0]} <MODEL> <CSC> <DOWNLOAD_DIRECTORY> [VERSION]"
+        return 1
+    fi
+
+    local MODEL="$1"
+    local CSC="$2"
+    local DOWN_DIR="${3}/$MODEL"
+	local VERSION="${4:-}"
+
+    rm -rf "$DOWN_DIR"
+    mkdir -p "$DOWN_DIR"
+
+    echo -e "======================================"
+    echo -e "  Samsung FW Downloader   "
+    echo -e "======================================"
+    echo -e "MODEL: $MODEL | CSC: $CSC"
+
+    # Check version
+	if [ -z "$VERSION" ]; then
+        VERSION=$($samloader check-update --model "$MODEL" --region "$CSC")
+
+        if [ $? -ne 0 ] || [ -z "$VERSION" ]; then
+            echo "⛔️ MODEL/CSC not valid or no update found."
+            exit 1
+        fi
+    fi
+
+    if [ -n "$GITHUB_ENV" ]; then
+        echo "VERSION=$VERSION" >> "$GITHUB_ENV"
+    fi
+
+    # Download Firmware
+	local VERSION_FILE="${VERSION//\//_}"
+    $samloader download --model "$MODEL" --region "$CSC" --version "$VERSION" --out-file "$DOWN_DIR/${VERSION_FILE}.zip"
+    if [ $? -ne 0 ]; then
+        echo -e "⛔️ Download failed. Check MODEL/CSC."
+        exit 1
+    fi
+
+	find "$DOWN_DIR" -type f -name "*.zip.enc*" -delete
+
+    # Show Firmware Info
+    local file_size=$(du -m "${DOWN_DIR}/${VERSION}.zip" 2>/dev/null | awk '{print $1}')
+    echo -e "Firmware Size: ${file_size} MB"
+}
 
 CHECK_FILE() {
     if [ ! -f "$1" ]; then

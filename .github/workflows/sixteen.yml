@@ -1,4 +1,4 @@
-name: Build QuantumROM Aurora.
+name: QuantumROM Tools.
 
 on:
   workflow_dispatch:
@@ -6,11 +6,11 @@ on:
       STOCK_DEVICE:
         description: "STOCK_DEVICE_MODEL or None"
         required: true
-        default: "SM-G980F"
+        default: "SM-G780F"
       USE_UI_8_TETHERING_APEX:
         description: "Set True if your kernel BPF version is 5.4 (lower than 5.10)."
         required: true
-        default: "True"
+        default: "true"
       TARGET_DEVICE:
         description: "TARGET_DEVICE_MODEL."
         required: true
@@ -18,15 +18,18 @@ on:
       TARGET_DEVICE_CSC:
         description: "TARGET_DEVICE_CSC."
         required: true
-        default: "EUX"
-      TARGET_DEVICE_IMEI:
-        description: "TARGET_DEVICE_IMEI."
-        required: true
-        default: "350389910895757"
+        default: "ZTO"
+      TARGET_FW_VERSION:
+        description: "Specific Samsung firmware version (PDA/CSC/MODEM) OR (AP/CSC/CP)"
+        required: false
       OUTPUT_FILESYSTEM:
         description: "OUTPUT_FILESYSTEM. e.g erofs / ext4 / f2fs"
         required: true
         default: "erofs"
+      COMPRESS_IMG_TO_XZ:
+        description: "Compress IMG to XZ (True/False)"
+        required: true
+        default: "False"
 
 jobs:
   build:
