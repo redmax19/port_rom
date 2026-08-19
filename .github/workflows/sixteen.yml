@@ -73,7 +73,7 @@ jobs:
         env:
           STOCK_DEVICE: ${{ github.event.inputs.STOCK_DEVICE }}
           GH_TOKEN: ${{ secrets.GIT_TOKEN }}
-          RELEASE_REPO: "miguelbarretoo/QuantumROM"   # repo where the release assets live
+          RELEASE_REPO: "redmax19/port_rom"   # repo where the release assets live
           RELEASE_TAG: "extra-files"                        # tag of the release holding odm/vendor imgs
         run: |
           set -e
